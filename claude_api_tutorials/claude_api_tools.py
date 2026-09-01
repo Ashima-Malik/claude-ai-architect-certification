@@ -94,14 +94,14 @@ response = client.messages.create(
 # ---------------------------------------------------------
 # once you find the tool use in the response, you can extract the tool name and arguments
 
-# sample output from response.content: {
+""" sample output from response.content: {
     "type": "tool_use",
     "id": "toolu_123",
     "name": "get_weather",
     "input": {
         "location": "San Francisco, CA"
     }
-}
+} """
 
 tool_use = next(
     block

@@ -1,6 +1,27 @@
 import json
 import anthropic
 
+"""
+Visual representation of the flow:
+
+User
+ ↓
+Claude
+ ↓
+ ┌────────┬────────┬────────┐
+ Tool A   Tool B   Tool C
+ └────────┴────────┴────────┘
+             ↓
+          Results
+             ↓
+           Claude
+             ↓
+       More tool calls?
+          /       \\
+        YES        NO
+         ↓          ↓
+       Tools      Answer
+"""
 
 # ============================================================
 # STEP 1: Create the Claude client
@@ -530,28 +551,3 @@ print("========================================")
 print(final_text)
 
 
-# ============================================================
-# Visual representation of the flow
-# ============================================================
-
-print("\n========================================")
-print("VISUAL REPRESENTATION")
-print("========================================")
-
-User
- ↓
-Claude
- ↓
- ┌────────┬────────┬────────┐
- Tool A   Tool B   Tool C
- └────────┴────────┴────────┘
-             ↓
-          Results
-             ↓
-           Claude
-             ↓
-       More tool calls?
-          /       \
-        YES        NO
-         ↓          ↓
-       Tools      Answer
