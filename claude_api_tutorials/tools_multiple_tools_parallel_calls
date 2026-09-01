@@ -1,0 +1,557 @@
+import json
+import anthropic
+
+
+# ============================================================
+# STEP 1: Create the Claude client
+# ============================================================
+
+# Anthropic reads your API key from the
+# ANTHROPIC_API_KEY environment variable.
+
+client = anthropic.Anthropic()
+
+
+# ============================================================
+# STEP 2: Define ALL tools available to Claude
+# ============================================================
+
+# These are TOOL DEFINITIONS.
+#
+# They describe to Claude:
+#
+# 1. What tools exist
+# 2. What each tool does
+# 3. What arguments each tool accepts
+#
+# They do NOT execute the tools.
+
+
+tools = [
+
+    # ========================================================
+    # TOOL 1: create_calendar_event
+    # ========================================================
+
+    {
+        "name": "create_calendar_event",
+
+        "description": (
+            "Create a calendar event with attendees "
+            "and optional recurrence."
+        ),
+
+        "input_schema": {
+
+            "type": "object",
+
+            "properties": {
+
+                "title": {
+                    "type": "string"
+                },
+
+                "start": {
+                    "type": "string",
+                    "format": "date-time"
+                },
+
+                "end": {
+                    "type": "string",
+                    "format": "date-time"
+                },
+
+                "attendees": {
+                    "type": "array",
+
+                    "items": {
+                        "type": "string",
+                        "format": "email"
+                    }
+                },
+
+                "recurrence": {
+                    "type": "object",
+
+                    "properties": {
+
+                        "frequency": {
+                            "enum": [
+                                "daily",
+                                "weekly",
+                                "monthly"
+                            ]
+                        },
+
+                        "count": {
+                            "type": "integer",
+                            "minimum": 1
+                        }
+                    }
+                }
+            },
+
+            "required": [
+                "title",
+                "start",
+                "end"
+            ]
+        }
+    },
+
+
+    # ========================================================
+    # TOOL 2: list_calendar_events
+    # ========================================================
+
+    {
+        "name": "list_calendar_events",
+
+        "description": (
+            "List all calendar events on a given date."
+        ),
+
+        "input_schema": {
+
+            "type": "object",
+
+            "properties": {
+
+                "date": {
+                    "type": "string",
+                    "format": "date"
+                }
+            },
+
+            "required": [
+                "date"
+            ]
+        }
+    }
+]
+
+
+# ============================================================
+# STEP 3: Define the ACTUAL calendar functions
+# ============================================================
+
+# Again:
+#
+# Tool definitions above = instructions for Claude
+#
+# These Python functions = actual execution by YOUR application
+
+
+def create_calendar_event(
+    title,
+    start,
+    end,
+    attendees=None,
+    recurrence=None
+):
+
+    print("\n>>> EXECUTING create_calendar_event()")
+
+    print("Title:", title)
+    print("Start:", start)
+    print("End:", end)
+    print("Attendees:", attendees)
+    print("Recurrence:", recurrence)
+
+
+    # --------------------------------------------------------
+    # REAL APPLICATION
+    # --------------------------------------------------------
+    #
+    # Here you would call Google Calendar / Outlook / etc.
+    #
+    # Example:
+    #
+    # calendar_api.create_event(...)
+    #
+    # --------------------------------------------------------
+
+
+    # Simulated result
+
+    return {
+        "event_id": "evt_123",
+        "status": "created",
+        "title": title
+    }
+
+
+# ============================================================
+# STEP 4: Define list_calendar_events()
+# ============================================================
+
+
+def list_calendar_events(date):
+
+    print("\n>>> EXECUTING list_calendar_events()")
+
+    print("Date:", date)
+
+
+    # --------------------------------------------------------
+    # REAL APPLICATION
+    # --------------------------------------------------------
+    #
+    # Here you would call your calendar API.
+    #
+    # For example:
+    #
+    # calendar_api.list_events(date)
+    #
+    # --------------------------------------------------------
+
+
+    # Simulated calendar
+
+    return {
+        "events": [
+            {
+                "title": "Existing meeting",
+                "start": "14:00",
+                "end": "15:00"
+            }
+        ]
+    }
+
+
+# ============================================================
+# STEP 5: Create a TOOL ROUTER
+# ============================================================
+
+# Claude gives us:
+#
+# tool name
+# +
+# tool input
+#
+# run_tool() determines which Python function should execute.
+
+
+def run_tool(name, tool_input):
+
+    print("\n----------------------------------------")
+    print("RUNNING TOOL")
+    print("----------------------------------------")
+
+    print("Tool:", name)
+    print("Input:", tool_input)
+
+
+    # --------------------------------------------------------
+    # Tool 1
+    # --------------------------------------------------------
+
+    if name == "create_calendar_event":
+
+        return create_calendar_event(
+            title=tool_input["title"],
+            start=tool_input["start"],
+            end=tool_input["end"],
+            attendees=tool_input.get("attendees", []),
+            recurrence=tool_input.get("recurrence")
+        )
+
+
+    # --------------------------------------------------------
+    # Tool 2
+    # --------------------------------------------------------
+
+    elif name == "list_calendar_events":
+
+        return list_calendar_events(
+            date=tool_input["date"]
+        )
+
+
+    # --------------------------------------------------------
+    # Unknown tool
+    # --------------------------------------------------------
+
+    else:
+
+        return {
+            "error": f"Unknown tool: {name}"
+        }
+
+
+# ============================================================
+# STEP 6: Create the user's request
+# ============================================================
+
+user_message = (
+    "Check what I have next Monday, "
+    "then schedule a planning session "
+    "that avoids any conflicts."
+)
+
+
+# ============================================================
+# STEP 7: Create conversation history
+# ============================================================
+
+messages = [
+
+    {
+        "role": "user",
+        "content": user_message
+    }
+
+]
+
+
+# ============================================================
+# STEP 8: First call to Claude
+# ============================================================
+
+print("\n========================================")
+print("CALLING CLAUDE")
+print("========================================")
+
+
+response = client.messages.create(
+
+    model="claude-opus-5",
+
+    max_tokens=1024,
+
+    # Give Claude BOTH tools
+
+    tools=tools,
+
+    # Conversation history
+
+    messages=messages
+)
+
+
+# ============================================================
+# STEP 9: Check Claude's response
+# ============================================================
+
+print("\nClaude stop reason:")
+print(response.stop_reason)
+
+
+# Claude could return something like:
+#
+# stop_reason = "tool_use"
+#
+# This means Claude wants our application
+# to execute one or more tools.
+
+
+# ============================================================
+# STEP 10: Start the agentic loop
+# ============================================================
+
+while response.stop_reason == "tool_use":
+
+    print("\n========================================")
+    print("CLAUDE REQUESTED TOOL(S)")
+    print("========================================")
+
+
+    # --------------------------------------------------------
+    # IMPORTANT:
+    #
+    # There may be MULTIPLE tool_use blocks
+    # inside response.content.
+    #
+    # So we DON'T use:
+    #
+    # next(...)
+    #
+    # because next() would only find ONE tool.
+    #
+    # Instead we loop through ALL blocks.
+    # --------------------------------------------------------
+
+
+    tool_results = []
+
+
+    # ========================================================
+    # STEP 10A: Find ALL tool calls
+    # ========================================================
+
+    for block in response.content:
+
+        if block.type == "tool_use":
+
+            print("\nTool requested:")
+            print("Name:", block.name)
+            print("ID:", block.id)
+            print("Input:", block.input)
+
+
+            # =================================================
+            # STEP 10B: Execute the requested tool
+            # =================================================
+
+            result = run_tool(
+                block.name,
+                block.input
+            )
+
+
+            print("\nTool result:")
+            print(result)
+
+
+            # =================================================
+            # STEP 10C: Create tool_result
+            # =================================================
+
+            tool_results.append(
+
+                {
+                    "type": "tool_result",
+
+                    # IMPORTANT:
+                    #
+                    # This must match the ID of the
+                    # corresponding tool_use block.
+
+                    "tool_use_id": block.id,
+
+                    # Convert Python dictionary to JSON
+
+                    "content": json.dumps(result)
+                }
+
+            )
+
+
+    # ========================================================
+    # STEP 11: Add Claude's response to history
+    # ========================================================
+
+    messages.append(
+
+        {
+            "role": "assistant",
+            "content": response.content
+        }
+
+    )
+
+
+    # ========================================================
+    # STEP 12: Add ALL tool results to history
+    # ========================================================
+
+    # This is the critical Ring 3 concept.
+    #
+    # If Claude requested:
+    #
+    # Tool A
+    # Tool B
+    #
+    # we send:
+    #
+    # Tool result A
+    # Tool result B
+    #
+    # TOGETHER in one user message.
+
+
+    messages.append(
+
+        {
+            "role": "user",
+            "content": tool_results
+        }
+
+    )
+
+
+    # ========================================================
+    # STEP 13: Ask Claude what to do next
+    # ========================================================
+
+    print("\n========================================")
+    print("SENDING TOOL RESULTS TO CLAUDE")
+    print("========================================")
+
+
+    response = client.messages.create(
+
+        model="claude-opus-5",
+
+        max_tokens=1024,
+
+        tools=tools,
+
+        messages=messages
+    )
+
+
+# ============================================================
+# STEP 14: Claude has finished
+# ============================================================
+
+print("\n========================================")
+print("CLAUDE FINISHED")
+print("========================================")
+
+
+print("Stop reason:")
+print(response.stop_reason)
+
+
+# ============================================================
+# STEP 15: Extract final text
+# ============================================================
+
+final_text = next(
+
+    block.text
+
+    for block in response.content
+
+    if block.type == "text"
+
+)
+
+
+# ============================================================
+# STEP 16: Print final answer
+# ============================================================
+
+print("\n========================================")
+print("FINAL ANSWER")
+print("========================================")
+
+print(final_text)
+
+
+# ============================================================
+# Visual representation of the flow
+# ============================================================
+
+print("\n========================================")
+print("VISUAL REPRESENTATION")
+print("========================================")
+
+User
+ ↓
+Claude
+ ↓
+ ┌────────┬────────┬────────┐
+ Tool A   Tool B   Tool C
+ └────────┴────────┴────────┘
+             ↓
+          Results
+             ↓
+           Claude
+             ↓
+       More tool calls?
+          /       \
+        YES        NO
+         ↓          ↓
+       Tools      Answer
