@@ -21,6 +21,8 @@ client = anthropic.Anthropic() #creates the connection to Anthropic's API. API k
 # In this we are telling the claude what the tool expects. So, claude will learn here that the tool name is get_weather
 # and the tool expects a location parameter which is string.
 
+# below is the input schema for the tool, which will have: name, description, input_schema, input_examples
+
 tools = [
     {
         "name": "get_weather",
@@ -64,6 +66,14 @@ messages = [
 # Argument : location = "San Francisco"
 
 # IMPORTANT: here, claude is not calling your function, it's just saying, hey please call get_weather with San Francisco, CA. 
+
+# In tool_choice, type auto means that claude can decide whether to call a tool or not.If calude is not calling tools as you expected, 
+# you can add a light instruction such as "Please call the tool if you need weather information." If tool_choice is "type":"tool", then we are forcing the tool use.
+# auto - claude decides whether to call a tool or not
+# tool - we are forcing the tool use
+# any - claude can call any tool(it must use one of the provided tools but doesnt force a particular one.)
+# none - no tools are used, default value
+
 
 response = client.messages.create(
     model="claude-opus-5",
