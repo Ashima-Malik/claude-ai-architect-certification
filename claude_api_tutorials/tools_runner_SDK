@@ -1,0 +1,151 @@
+import json
+
+from anthropic import Anthropic, beta_tool
+
+
+# ============================================================
+# STEP 1: Create the Anthropic client
+# ============================================================
+
+# The client reads ANTHROPIC_API_KEY from your environment.
+
+client = Anthropic()
+
+
+# ============================================================
+# STEP 2: Define the weather tool
+# ============================================================
+
+@beta_tool
+def get_weather(
+    location: str,
+    unit: str = "fahrenheit"
+) -> str:
+
+    """
+    Get the current weather in a given location.
+
+    Args:
+        location:
+            The city and state, e.g. San Francisco, CA
+
+        unit:
+            Temperature unit.
+            Either 'celsius' or 'fahrenheit'
+    """
+
+    print("\n>>> Executing get_weather()")
+
+    print("Location:", location)
+
+    print("Unit:", unit)
+
+
+    # --------------------------------------------------------
+    # REAL APPLICATION
+    # --------------------------------------------------------
+    #
+    # Here you would call a real weather API.
+    #
+    # Example:
+    #
+    # weather_api.get_current_weather(location)
+    #
+    # --------------------------------------------------------
+
+    # For this tutorial we simulate the API.
+
+    result = {
+        "location": location,
+        "temperature": "20°C",
+        "condition": "Sunny"
+    }
+
+
+    return json.dumps(result)
+
+
+# ============================================================
+# STEP 3: Define the calculator tool
+# ============================================================
+
+@beta_tool
+def calculate_sum(
+    a: int,
+    b: int
+) -> str:
+
+    """
+    Add two numbers together.
+
+    Args:
+        a:
+            First number
+
+        b:
+            Second number
+    """
+
+    print("\n>>> Executing calculate_sum()")
+
+    print("a:", a)
+
+    print("b:", b)
+
+
+    # Actually perform the calculation
+
+    result = a + b
+
+
+    return str(result)
+
+
+# ============================================================
+# STEP 4: Give the tools to tool_runner()
+# ============================================================
+
+runner = client.beta.messages.tool_runner(
+
+    model="claude-opus-5",
+
+    max_tokens=1024,
+
+    # These are the actual Python functions.
+    #
+    # beta_tool automatically turns them into
+    # tool definitions Claude can understand.
+
+    tools=[
+        get_weather,
+        calculate_sum
+    ],
+
+    # Initial conversation
+
+    messages=[
+        {
+            "role": "user",
+
+            "content": (
+                "What's the weather like in Paris? "
+                "Also, what's 15 + 27?"
+            )
+        }
+    ]
+)
+
+
+# ============================================================
+# STEP 5: Iterate through the runner
+# ============================================================
+
+for message in runner:
+
+    print("\n========================================")
+
+    print("NEW MESSAGE")
+
+    print("========================================")
+
+    print(message)
