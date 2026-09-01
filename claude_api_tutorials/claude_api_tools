@@ -12,12 +12,14 @@ import json
 # STEP 1: Create the Anthropic client
 # ---------------------------------------------------------
 
-client = anthropic.Anthropic()
+client = anthropic.Anthropic() #creates the connection to Anthropic's API. API key is read from the ANTHROPIC_API_KEY environment variable.
 
 
 # ---------------------------------------------------------
-# STEP 2: Define the tool Claude is allowed to use
+# STEP 2: Define the tool Claude is allowed to use # we are allowing Claude to use the get_weather tool and defining the schema for the tool
 # ---------------------------------------------------------
+# In this we are telling the claude what the tool expects. So, claude will learn here that the tool name is get_weather
+# and the tool expects a location parameter which is string.
 
 tools = [
     {
@@ -57,6 +59,12 @@ messages = [
 # STEP 4: Send the question + tool definition to Claude
 # ---------------------------------------------------------
 
+# In this step, we are sending the question and the tool definition to Claude.
+# Claude then reasons thoroughly : user wants current weather, I have a tool called get_weather, so I will call it.
+# Argument : location = "San Francisco"
+
+# IMPORTANT: here, claude is not calling your function, it's just saying, hey please call get_weather with San Francisco, CA. 
+
 response = client.messages.create(
     model="claude-opus-5",
     max_tokens=1024,
@@ -74,6 +82,16 @@ response = client.messages.create(
 # ---------------------------------------------------------
 # STEP 5: Check whether Claude wants to call a tool
 # ---------------------------------------------------------
+# once you find the tool use in the response, you can extract the tool name and arguments
+
+# sample output from response.content: {
+    "type": "tool_use",
+    "id": "toolu_123",
+    "name": "get_weather",
+    "input": {
+        "location": "San Francisco, CA"
+    }
+}
 
 tool_use = next(
     block
@@ -90,6 +108,10 @@ print("Arguments:", json.dumps(tool_use.input))
 # ---------------------------------------------------------
 # STEP 6: Extract Claude's requested location
 # ---------------------------------------------------------
+
+# Remember location comes from the tool arguments
+# tool_use.input is a dictionary with the tool arguments
+# in this case, the tool arguments are {"location": "San Francisco"}
 
 location = tool_use.input["location"]
 
@@ -217,3 +239,11 @@ final_text = next(
 
 print("\nFinal answer:")
 print(final_text.text)
+
+
+# Why do we need Claude twice?
+# First Claude call: Claude decides to call the tool (understand the user -> determine what information is needed -> choose tool -> provide tool arguments)
+
+# Your application job: receive tool request -> execute actual function -> Call APIs/DBs/search etc. -> return result to Claude for its second call
+
+# Second Claude call: Claude uses the tool result to generate the final answer (interpret tool results -> final answer)
