@@ -430,12 +430,6 @@ Test the prompt against:
 - Conflicting information
 - Output-format violations
 
-Related examples:
-
-- [prompt_engineering.py](https://github.com/Ashima-Malik/claude-ai-architect-certification/blob/main/claude_api_tutorials/prompt_engineering.py)
-- [prompt_evaluation.py](https://github.com/Ashima-Malik/claude-ai-architect-certification/blob/main/claude_api_tutorials/prompt_evaluation.py)
-
----
 
 # 14. Production Trade-offs
 
