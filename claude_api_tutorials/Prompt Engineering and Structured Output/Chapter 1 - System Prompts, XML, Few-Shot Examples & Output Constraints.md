@@ -32,8 +32,7 @@ A common mistake is:
 
 Instead, I use this loop:
 
-```mermaid
-flowchart TD
+```
     A[First response] --> B{What failed?}
     B -->|Wrong format| C[Add output constraint]
     B -->|Wrong scope / behavior| D[Strengthen system prompt]
@@ -69,7 +68,7 @@ I use it for:
 
 ### Example
 
-```python
+```
 system_prompt = (
     "You are a support-ticket classifier. "
     "Classify each ticket into BILLING, TECHNICAL, or ESCALATION. "
@@ -279,7 +278,7 @@ BILLING
 
 # 8. When Should I Stack the Techniques?
 
-```mermaid
+```
 flowchart LR
     A[System Prompt<br/>Role + Rules] --> B[XML<br/>Boundaries]
     B --> C[Few-Shot<br/>Pattern]
@@ -339,7 +338,7 @@ Please return JSON with these fields.
 
 I define the expected schema through the API.
 
-```mermaid
+```
 flowchart LR
     A[Prompt] --> B[Claude]
     B --> C[Structured Output]
@@ -404,7 +403,7 @@ tool = {
 
 The flow becomes:
 
-```mermaid
+```
 flowchart LR
     A[Claude decides to call tool] --> B[Tool schema]
     B --> C{Arguments valid?}
@@ -472,7 +471,7 @@ else:
 
 # 15. Quick Decision Guide
 
-```mermaid
+```
 flowchart TD
     A[Model response is wrong] --> B{What is wrong?}
     B -->|Behavior / scope| C[System Prompt]

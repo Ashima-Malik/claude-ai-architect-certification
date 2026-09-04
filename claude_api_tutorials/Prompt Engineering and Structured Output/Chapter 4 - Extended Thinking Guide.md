@@ -20,8 +20,7 @@ Answer
 
 With thinking:
 
-```mermaid
-flowchart LR
+```
     A[User request] --> B[Claude evaluates the task]
     B --> C[Thinking blocks]
     C --> D[Final text / tool call]
@@ -55,7 +54,7 @@ The API returns thinking blocks before the final text block. The thinking conten
 
 ### Rule
 
-```text
+```
 Hard problem + expensive mistakes
         ↓
    Consider thinking
@@ -75,7 +74,7 @@ Current Claude models use **adaptive thinking** where supported.
 
 ### Python
 
-```python
+```
 import anthropic
 
 client = anthropic.Anthropic()
@@ -118,8 +117,7 @@ These are different controls.
 
 Think of it as:
 
-```mermaid
-flowchart LR
+```
     A[thinking] --> B[Can Claude reason?]
     C[effort] --> D[How much work?]
     E[max_tokens] --> F[Hard token ceiling]
@@ -142,7 +140,7 @@ flowchart LR
 
 Thinking tokens count toward `max_tokens`.
 
-```text
+```
 max_tokens = 16,000
 
 Thinking       10,000
@@ -153,7 +151,7 @@ Total           12,000
 
 So don't set `max_tokens` only based on the final answer.
 
-```python
+```
 response = client.messages.create(
     model="claude-opus-4-8",
     max_tokens=16000,
@@ -166,7 +164,7 @@ response = client.messages.create(
 
 A request can stop because it reaches the context-window limit. On newer Claude models, this can produce:
 
-```text
+```
 stop_reason = "model_context_window_exceeded"
 ```
 
@@ -176,7 +174,7 @@ stop_reason = "model_context_window_exceeded"
 
 A response can contain different block types:
 
-```json
+```
 {
   "content": [
     {
@@ -194,7 +192,7 @@ A response can contain different block types:
 
 ### Read the blocks by type
 
-```python
+```
 for block in response.content:
     if block.type == "thinking":
         print("Thinking:", block.thinking)
@@ -264,8 +262,7 @@ Omitting the displayed thinking can improve time-to-first-text-token, but it doe
 
 Thinking also works with streaming.
 
-```mermaid
-sequenceDiagram
+```
     participant C as Claude API
     participant A as Application
 
@@ -280,7 +277,7 @@ sequenceDiagram
 
 ### Python
 
-```python
+```
 with client.messages.stream(
     model="claude-opus-4-8",
     max_tokens=16000,
@@ -315,14 +312,13 @@ This is where thinking becomes especially useful.
 
 Without interleaved thinking:
 
-```text
+```
 Think → Tool 1 → Tool 2 → Answer
 ```
 
 With interleaved thinking:
 
-```mermaid
-flowchart TD
+```
     A[User request] --> B[Think]
     B --> C[Tool 1]
     C --> D[Think about result]
@@ -335,7 +331,7 @@ Claude can reason about a tool result before choosing the next action.
 
 ### Example
 
-```text
+```
 User:
 Find why the deployment failed and check the latest logs.
 
@@ -375,8 +371,7 @@ Do not:
 
 ### Correct flow
 
-```mermaid
-flowchart LR
+```
     A[Claude response] --> B[thinking]
     B --> C[tool_use]
     C --> D[Your tool]
@@ -387,7 +382,7 @@ flowchart LR
 
 ### Example
 
-```python
+```
 assistant_content = response.content
 
 messages.append({
@@ -550,8 +545,7 @@ These changes can start a new cache prefix:
 - Changing `effort`
 - Changing `budget_tokens` where applicable
 
-```mermaid
-flowchart LR
+```
     A[Same thinking config] --> B[Cache can continue]
     C[Change thinking / effort] --> D[New cache prefix]
 ```
@@ -674,8 +668,7 @@ Some newer models can provide short progress updates between tool calls.
 
 These are different from reasoning.
 
-```mermaid
-flowchart LR
+```
     A[Thinking] --> B[Progress update]
     B --> C[Tool call]
     C --> D[Tool result]

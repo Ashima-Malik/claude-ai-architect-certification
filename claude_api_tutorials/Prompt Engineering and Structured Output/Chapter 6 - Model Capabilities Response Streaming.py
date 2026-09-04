@@ -133,19 +133,19 @@ for block in message.content:
 """
 A stream roughly follows:
 
-    message_start
+    message_start (a new message is begining, carries the message shell with empty content and inital usage)
          ↓
-    content_block_start
+    content_block_start (a new contenct block is opening with its type(text, tool_use, or thikning) and index) - Make a slot at that index for named block type, a toll_use block opens with its name and id but not any input 
          ↓
-    content_block_delta
+    content_block_delta (an incremental piece of block: text, json for input call, thinking fragment)- append the fragment at the block at that index, for tool call input json comes partially, you can't parse them until the blcok closes
          ↓
-    content_block_delta
+    content_block_delta (same as above)
          ↓
-    content_block_stop
+    content_block_stop (the block at this index is complete) -finalize the block, for text block text will keep on streaming but for tool_use block, this is the first time json is complete enough to parse
          ↓
-    message_delta
+    message_delta (top level changes to the message: the stop_reason and final usage counts) - record the stop_reason. It tells you whether the model finished or stopped for some other reason
          ↓
-    message_stop
+    message_stop (the stream is complete) - the assembled content now is the finished message just like the non-streamed response
 
 The most important event for text is:
 
@@ -416,3 +416,61 @@ with client.messages.stream(
     final_message = stream.get_final_message()
 
 print(final_message)
+
+"""
+What if streaming stops early becuase of drop connection, timeout or client disconnect:
+
+- Track the completion- a turn is usable only when message_stop has arrived
+- Do not save the partial assistant run, retry the request
+- check the stop_reason from message_delta, a stop_reason of tool_use means your assembled tool calls are reasy to run, any other values means you are not on a tool path
+
+
+What streaming handles-
+
+- long responses and user face interface where streaming output keeps them hanging than just waiting for the output
+- you assemble blocks yourself and it adds cost and complexity, you must not act on partial blocks and you must handle mid stream interruption explicitly
+- for short responses and backend jobs where none is waiting, a non-stream call is simpler and removes the partial state risk entirely
+
+
+QUICK REVISION-
+
+- A stream ending ≠ a complete message.
+
+- Only message_stop confirms the message finished successfully.
+
+- A network interruption can leave a tool_use block with incomplete/truncated JSON.
+
+- Do not append a streamed assistant turn to history just because the read loop ended.
+
+- If the stream ends before message_stop:
+
+    Discard the incomplete turn.
+
+    Do not store the partial tool_use block.
+
+    Retry from the last complete turn.
+
+Otherwise, the next API request may fail validation because it contains the corrupted tool call.
+
+The error can appear on the retry request, making the schema or retry logic look like the problem.
+Production pattern:
+
+Stream starts
+    ↓
+Receive events
+    ↓
+message_stop?
+   ↙      ↘
+ Yes       No
+  ↓         ↓
+Commit    Discard
+history   partial turn
+  ↓         ↓
+Continue  Retry safely
+
+
+Key takeaway:
+
+Only commit streamed content to conversation history after message_stop.
+"""
+
