@@ -1,0 +1,259 @@
+#Tool use with Claude
+
+# Clint tools- run in your application, such as user define tools or the tools that are defined with the anthropic schema. 
+# Server tools-  they run on Anthropic Infrastructure such as web_search, web_fetch, code_execution, ool_search
+
+import anthropic
+import requests
+import json
+
+
+# ---------------------------------------------------------
+# STEP 1: Create the Anthropic client
+# ---------------------------------------------------------
+
+client = anthropic.Anthropic() #creates the connection to Anthropic's API. API key is read from the ANTHROPIC_API_KEY environment variable.
+
+
+# ---------------------------------------------------------
+# STEP 2: Define the tool Claude is allowed to use # we are allowing Claude to use the get_weather tool and defining the schema for the tool
+# ---------------------------------------------------------
+# In this we are telling the claude what the tool expects. So, claude will learn here that the tool name is get_weather
+# and the tool expects a location parameter which is string.
+
+# below is the input schema for the tool, which will have: name, description, input_schema, input_examples
+
+tools = [
+    {
+        "name": "get_weather",
+
+        "description": "Get the current weather for a given location.",
+
+        "input_schema": {
+            "type": "object",
+
+            "properties": {
+                "location": {
+                    "type": "string",
+                    "description": "City and state, e.g. San Francisco, CA",
+                }
+            },
+
+            "required": ["location"],
+        },
+    }
+]
+
+
+# ---------------------------------------------------------
+# STEP 3: User asks a question
+# ---------------------------------------------------------
+
+messages = [
+    {
+        "role": "user",
+        "content": "What's the weather in San Francisco?"
+    }
+]
+
+
+# ---------------------------------------------------------
+# STEP 4: Send the question + tool definition to Claude
+# ---------------------------------------------------------
+
+# In this step, we are sending the question and the tool definition to Claude.
+# Claude then reasons thoroughly : user wants current weather, I have a tool called get_weather, so I will call it.
+# Argument : location = "San Francisco"
+
+# IMPORTANT: here, claude is not calling your function, it's just saying, hey please call get_weather with San Francisco, CA. 
+
+# In tool_choice, type auto means that claude can decide whether to call a tool or not.If calude is not calling tools as you expected, 
+# you can add a light instruction such as "Please call the tool if you need weather information." If tool_choice is "type":"tool", then we are forcing the tool use.
+# auto - claude decides whether to call a tool or not
+# tool - we are forcing the tool use
+# any - claude can call any tool(it must use one of the provided tools but doesnt force a particular one.)
+# none - no tools are used, default value
+
+
+response = client.messages.create(
+    model="claude-opus-5",
+    max_tokens=1024,
+    tools=tools,
+
+    tool_choice={
+        "type": "auto",
+        "disable_parallel_tool_use": True
+    },
+
+    messages=messages,
+)
+
+
+# ---------------------------------------------------------
+# STEP 5: Check whether Claude wants to call a tool
+# ---------------------------------------------------------
+# once you find the tool use in the response, you can extract the tool name and arguments
+
+""" sample output from response.content: {
+    "type": "tool_use",
+    "id": "toolu_123",
+    "name": "get_weather",
+    "input": {
+        "location": "San Francisco, CA"
+    }
+} """
+
+tool_use = next(
+    block
+    for block in response.content
+    if block.type == "tool_use"
+)
+
+
+print("Claude wants to call:")
+print("Tool:", tool_use.name)
+print("Arguments:", json.dumps(tool_use.input))
+
+
+# ---------------------------------------------------------
+# STEP 6: Extract Claude's requested location
+# ---------------------------------------------------------
+
+# Remember location comes from the tool arguments
+# tool_use.input is a dictionary with the tool arguments
+# in this case, the tool arguments are {"location": "San Francisco"}
+
+location = tool_use.input["location"]
+
+print("Location:", location)
+
+
+# ---------------------------------------------------------
+# STEP 7: Actually execute the tool
+# ---------------------------------------------------------
+
+def get_weather(location):
+    """
+    This is YOUR tool.
+    Claude does NOT execute this Python function.
+    Your application executes it.
+    """
+
+    # For this simple example, we'll use San Francisco
+    # coordinates.
+
+    if "San Francisco" in location:
+        latitude = 37.7749
+        longitude = -122.4194
+
+    else:
+        raise ValueError(
+            f"Location not supported in this example: {location}"
+        )
+
+
+    # Call the real weather API
+    url = "https://api.open-meteo.com/v1/forecast"
+
+    params = {
+        "latitude": latitude,
+        "longitude": longitude,
+        "current": "temperature_2m,weather_code",
+    }
+
+    weather_response = requests.get(
+        url,
+        params=params
+    )
+
+    weather_response.raise_for_status()
+
+    data = weather_response.json()
+
+    return data["current"]
+
+
+# Execute our tool
+weather_data = get_weather(location)
+
+
+print("Weather API returned:")
+print(weather_data)
+
+
+# ---------------------------------------------------------
+# STEP 8: Convert the tool result into something Claude
+#         can understand
+# ---------------------------------------------------------
+
+weather_result = json.dumps(weather_data)
+
+
+# ---------------------------------------------------------
+# STEP 9: Send Claude's original tool request + the
+#         tool result back to Claude
+# ---------------------------------------------------------
+
+messages += [
+
+    # Claude's previous response
+    {
+        "role": "assistant",
+        "content": response.content
+    },
+
+    # Result of executing the tool
+    {
+        "role": "user",
+        "content": [
+            {
+                "type": "tool_result",
+
+                "tool_use_id": tool_use.id,
+
+                "content": weather_result
+            }
+        ]
+    }
+]
+
+
+# ---------------------------------------------------------
+# STEP 10: Ask Claude to produce the final answer
+# ---------------------------------------------------------
+
+followup = client.messages.create(
+    model="claude-opus-5",
+    max_tokens=1024,
+    tools=tools,
+
+    tool_choice={
+        "type": "auto",
+        "disable_parallel_tool_use": True
+    },
+
+    messages=messages,
+)
+
+
+# ---------------------------------------------------------
+# STEP 11: Extract Claude's final text
+# ---------------------------------------------------------
+
+final_text = next(
+    block
+    for block in followup.content
+    if block.type == "text"
+)
+
+
+print("\nFinal answer:")
+print(final_text.text)
+
+
+# Why do we need Claude twice?
+# First Claude call: Claude decides to call the tool (understand the user -> determine what information is needed -> choose tool -> provide tool arguments)
+
+# Your application job: receive tool request -> execute actual function -> Call APIs/DBs/search etc. -> return result to Claude for its second call
+
+# Second Claude call: Claude uses the tool result to generate the final answer (interpret tool results -> final answer)
